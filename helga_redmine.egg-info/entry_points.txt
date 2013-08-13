@@ -1,3 +1,0 @@
-[helga_handlers]
-redmine = redmine:RedmineExtension
-
