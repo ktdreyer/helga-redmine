@@ -1,3 +1,4 @@
+import requests
 import random
 
 import smokesignal
@@ -42,7 +43,19 @@ class RedmineExtension(CommandExtension, ContextualExtension):
     def transform_match(self, match):
         ticket_number = match[-2].replace('#', '')
 
-        return settings.REDMINE_URL % {'ticket': ticket_number}
+        ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
+        subject = self.get_subject(ticket_url)
+        return "%s [%s]" % (ticket_url, subject)
+
+    def get_subject(self, url):
+        api_url = "%s.json" % url
+        result = requests.get(api_url).json()
+        subject = '[no subject]'
+        try:
+            subject = result['issue']['subject']
+        except KeyError:
+            pass
+        return subject
 
     def handle_message(self, opts, message):
         if opts['add_re']:
