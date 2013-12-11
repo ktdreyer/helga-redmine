@@ -20,8 +20,8 @@ setup(name="helga-redmine",
       license='MIT',
       packages=find_packages(),
       entry_points = dict(
-          helga_handlers = [
-              'redmine = redmine:RedmineExtension',
+          helga_plugins = [
+              'redmine = redmine:redmine',
           ],
       ),
 )
