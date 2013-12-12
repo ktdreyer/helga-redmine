@@ -1,4 +1,3 @@
-import logging
 import requests
 from helga.plugins import match
 from helga import log, settings
@@ -15,7 +14,11 @@ def redmine(client, channel, nick, message, matches):
 
     ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
     api_url = "%s.json" % ticket_url
-    result = requests.get(api_url).json()
+    response = requests.get(api_url)
+    try:
+        result = response.json()
+    except ValueError as err:
+        return "couldn't access that URL. response was %s: %s" % (response.status_code, err)
 
     try:
         subject = result['issue']['subject']
