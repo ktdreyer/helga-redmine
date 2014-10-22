@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '0.0.1'
+version = '0.0.2'
 
 setup(name="helga-redmine",
       version=version,
@@ -15,7 +15,7 @@ setup(name="helga-redmine",
                    'Topic :: IRC Bots'],
       keywords='irc bot redmine',
       author='alfredo deza',
-      author_email='contact@deza.pe',
+      author_email='contact [at] deza [dot] pe',
       url='https://github.com/alfredodeza/helga-redmine',
       license='MIT',
       packages=find_packages(),
