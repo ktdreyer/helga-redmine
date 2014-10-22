@@ -5,7 +5,7 @@ version = '0.0.2'
 setup(name="helga-redmine",
       version=version,
       description=('redmine plugin for helga'),
-      classifiers=[ 'Environment :: IRC',
+      classifiers=['Development Status :: 4 - Beta',
                    'Intended Audience :: Twisted Developers, IRC Bot Developers',
                    'License :: OSI Approved :: MIT License',
                    'Operating System :: OS Independent',
