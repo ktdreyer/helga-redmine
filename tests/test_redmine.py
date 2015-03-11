@@ -1,4 +1,4 @@
-from redmine import is_ticket, sanitize
+from redmine import is_ticket, sanitize, get_issue_subject
 import pytest
 
 
@@ -73,3 +73,23 @@ class TestSanitize(object):
     @pytest.mark.parametrize('match', match_matrix())
     def test_sanitizes(self, match):
         assert sanitize(match) == '1234'
+
+
+class FakeResponse(object):
+    pass
+
+
+class TestGetIssueSubject(object):
+
+    def test_get_correct_subject(self):
+        response = FakeResponse()
+        response.json = lambda: {'issue':{'subject': 'some issue subject'}}
+        result = get_issue_subject(response)
+        assert result == 'some issue subject'
+
+    def test_get_fallback_subject(self):
+        response = FakeResponse()
+        response.json = lambda: {}
+        result = get_issue_subject(response)
+        assert result == 'unable to read subject'
+
