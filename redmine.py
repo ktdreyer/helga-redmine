@@ -25,6 +25,19 @@ def sanitize(match):
     return ticket_id.strip('#')
 
 
+def get_issue_subject(response):
+    try:
+        result = response.json()
+    except ValueError as err:
+        result = {}
+        logger.error("couldn't access that URL. response was %s: %s" % (response.status_code, err))
+
+    try:
+        return result['issue']['subject']
+    except KeyError:
+        return 'unable to read subject'
+
+
 @match(is_ticket, priority=0)
 def redmine(client, channel, nick, message, matches):
     """
@@ -38,14 +51,7 @@ def redmine(client, channel, nick, message, matches):
     ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
     api_url = "%s.json" % ticket_url
     response = requests.get(api_url)
-    try:
-        result = response.json()
-    except ValueError as err:
-        return "couldn't access that URL. response was %s: %s" % (response.status_code, err)
 
-    try:
-        subject = result['issue']['subject']
-    except KeyError:
-        subject = '[no subject]'
+    subject = get_issue_subject(response)
 
     return "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
