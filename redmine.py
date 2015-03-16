@@ -5,6 +5,13 @@ from helga import log, settings
 
 logger = log.getLogger(__name__)
 
+try:
+    request_headers = {'X-Redmine-API-Key': settings.REDMINE_API_KEY}
+    logger.debug("REDMINE_API_KEY is set. I will use this key to read private tickets.")
+except NameError:
+    logger.debug("REDMINE_API_KEY is not set. I can only read public tickets.")
+    request_headers = {}
+
 
 def is_ticket(message):
    regex = re.compile(
@@ -50,7 +57,7 @@ def redmine(client, channel, nick, message, matches):
 
     ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
     api_url = "%s.json" % ticket_url
-    response = requests.get(api_url)
+    response = requests.get(api_url, headers=request_headers)
 
     subject = get_issue_subject(response)
 
