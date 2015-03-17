@@ -17,6 +17,9 @@ setup(name="helga-redmine",
       url='https://github.com/alfredodeza/helga-redmine',
       license='MIT',
       packages=find_packages(),
+      install_requires=[
+          'requests',
+      ],
       entry_points = dict(
           helga_plugins = [
               'redmine = redmine:redmine',
