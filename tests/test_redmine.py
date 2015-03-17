@@ -4,7 +4,7 @@ import pytest
 
 def line_matrix():
     pre_garbage = [' ', '', 'some question about ',]
-    prefixes = ['issue', 'ticket', 'bug']
+    prefixes = ['issue', 'ticket', 'bug', 'Issue', 'TICKET', 'BuG']
     numbers = ['#123467890', '1234567890']
     garbage = ['?', ' ', '.', '!', '..', '...']
     lines = []

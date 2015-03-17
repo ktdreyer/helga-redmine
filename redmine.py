@@ -15,7 +15,7 @@ except NameError:
 
 def is_ticket(message):
    regex = re.compile(
-       r'(.*)(issue|ticket|bug)+\s+(#[0-9]+|[0-9]+)'
+       r'(.*)(issue|ticket|bug)+\s+(#[0-9]+|[0-9]+)', re.IGNORECASE
    )
    return regex.match(message)
 
