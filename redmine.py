@@ -5,10 +5,10 @@ from helga import log, settings
 
 logger = log.getLogger(__name__)
 
-try:
+if hasattr(settings, 'REDMINE_API_KEY'):
     request_headers = {'X-Redmine-API-Key': settings.REDMINE_API_KEY}
     logger.debug("REDMINE_API_KEY is set. I will use this key to read private tickets.")
-except NameError:
+else:
     logger.debug("REDMINE_API_KEY is not set. I can only read public tickets.")
     request_headers = {}
 
