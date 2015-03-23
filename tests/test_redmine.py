@@ -1,4 +1,4 @@
-from redmine import is_ticket, sanitize, get_issue_subject
+from redmine import is_ticket, sanitize, get_api_key, get_issue_subject
 import pytest
 
 
@@ -73,6 +73,23 @@ class TestSanitize(object):
     @pytest.mark.parametrize('match', match_matrix())
     def test_sanitizes(self, match):
         assert sanitize(match) == '1234'
+
+
+class FakeSettings(object):
+    pass
+
+
+class TestGetAPIKey(object):
+    def test_get_correct_api_key(self):
+        settings = FakeSettings()
+        settings.REDMINE_API_KEY = '1a64a94f14d8598de9211753a1450dbb'
+        result = get_api_key(settings)
+        assert result == '1a64a94f14d8598de9211753a1450dbb'
+
+    def test_get_missing_api_key(self):
+        settings = FakeSettings()
+        result = get_api_key(settings)
+        assert result == None
 
 
 class FakeResponse(object):
