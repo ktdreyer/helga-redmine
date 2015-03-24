@@ -20,6 +20,9 @@ setup(name="helga-redmine",
       install_requires=[
           'requests',
       ],
+      tests_require=[
+          'httpretty',
+      ],
       entry_points = dict(
           helga_plugins = [
               'redmine = redmine:redmine',
