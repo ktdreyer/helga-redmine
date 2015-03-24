@@ -32,6 +32,13 @@ def sanitize(match):
     ticket_id = ticket_id.strip()  # probably not necessary?
     return ticket_id.strip('#')
 
+def get_ticket_response(api_url, api_key):
+    if api_key:
+        request_headers = {'X-Redmine-API-Key': api_key}
+    else:
+        request_headers = {}
+    return requests.get(api_url, headers=request_headers)
+
 
 def get_issue_subject(response):
     """Find the "subject" string in the JSON data of python-requests' response
@@ -61,12 +68,7 @@ def redmine(client, channel, nick, message, matches):
     ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
     api_url = "%s.json" % ticket_url
     api_key = get_api_key(settings)
-    if api_key:
-        request_headers = {'X-Redmine-API-Key': api_key}
-    else:
-        request_headers = {}
-    response = requests.get(api_url, headers=request_headers)
-
+    response = get_ticket_response(api_url, api_key)
     subject = get_issue_subject(response)
 
     return "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
