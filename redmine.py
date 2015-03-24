@@ -34,6 +34,8 @@ def sanitize(match):
 
 
 def get_issue_subject(response):
+    """Find the "subject" string in the JSON data of python-requests' response
+    object."""
     try:
         result = response.json()
     except ValueError as err:
