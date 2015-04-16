@@ -1,5 +1,7 @@
-from redmine import is_ticket, sanitize, get_api_key, get_issue_subject
+from redmine import is_ticket, sanitize, get_ticket_response, get_api_key, get_issue_subject
 import pytest
+import httpretty
+import json
 
 
 def line_matrix():
@@ -110,3 +112,36 @@ class TestGetIssueSubject(object):
         result = get_issue_subject(response)
         assert result == 'unable to read subject'
 
+class TestAPIKeySubject(object):
+
+    api_url = 'http://tracker.example.com/issues/1234.json'
+
+    def request_callback(self, request, uri, headers):
+        if 'X-Redmine-API-Key' in request.headers:
+            payload = {'issue':{'subject': 'some issue subject'}}
+            return (200, headers, json.dumps(payload))
+        else:
+            return (401, headers, 'Unauthorized')
+
+    @httpretty.activate
+    def test_has_x_redmine_api_key(self):
+        httpretty.register_uri(
+            httpretty.GET, self.api_url,
+            body=self.request_callback)
+
+        response = get_ticket_response(self.api_url, '123deadbeef')
+        assert response.status_code == 200
+
+        result = get_issue_subject(response)
+        assert result == 'some issue subject'
+
+    @httpretty.activate
+    def test_has_no_x_redmine_api_key(self):
+        httpretty.register_uri(
+            httpretty.GET, self.api_url,
+            body=self.request_callback)
+        response = get_ticket_response(self.api_url, None)
+        assert response.status_code == 401
+
+        result = get_issue_subject(response)
+        assert result == 'unable to read subject'
