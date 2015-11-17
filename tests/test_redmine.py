@@ -6,7 +6,7 @@ import json
 
 def line_matrix():
     pre_garbage = [' ', '', 'some question about ',]
-    prefixes = ['issue', 'ticket', 'bug', 'Issue', 'TICKET', 'BuG']
+    prefixes = ['issue', 'ticket', 'bug', 'Issue', 'TICKET', 'BuG', 'redmine']
     numbers = ['#123467890', '1234567890']
     garbage = ['?', ' ', '.', '!', '..', '...']
     lines = []

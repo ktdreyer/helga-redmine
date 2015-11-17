@@ -16,7 +16,7 @@ def get_api_key(settings):
 
 def is_ticket(message):
    regex = re.compile(
-       r'(.*)(issue|ticket|bug)+\s+(#[0-9]+|[0-9]+)', re.IGNORECASE
+       r'(.*)(issue|ticket|bug|redmine)+\s+(#[0-9]+|[0-9]+)', re.IGNORECASE
    )
    return regex.match(message)
 
