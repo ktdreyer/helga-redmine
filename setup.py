@@ -19,10 +19,11 @@ setup(name="helga-redmine",
       packages=find_packages(),
       install_requires=[
           'helga',
-          'requests',
+          'treq>=15.1.0',
+          'twisted',
       ],
       tests_require=[
-          'httpretty',
+          'pytest-twisted',
       ],
       entry_points = dict(
           helga_plugins = [

@@ -1,7 +1,9 @@
-import requests
+import treq
 import re
-from helga.plugins import match
+from helga.plugins import match, ResponseNotReady
 from helga import log, settings
+
+from twisted.internet import defer
 
 logger = log.getLogger(__name__)
 
@@ -32,28 +34,38 @@ def sanitize(match):
     ticket_id = ticket_id.strip()  # probably not necessary?
     return ticket_id.strip('#')
 
-def get_ticket_response(api_url, api_key):
-    if api_key:
-        request_headers = {'X-Redmine-API-Key': api_key}
-    else:
-        request_headers = {}
-    return requests.get(api_url, headers=request_headers)
-
-
-def get_issue_subject(response):
-    """Find the "subject" string in the JSON data of python-requests' response
-    object."""
+@defer.inlineCallbacks
+def get_issue_subject(api_url, api_key=None):
+    """
+    Find the "subject" string in the JSON data of an api_url.
+    :param api_url: JSON API URL to GET via HTTP.
+    :param api_key: API secret key (string), or None if you do not want to
+                    authenticate to Redmine.
+    :returns: twisted.internet.defere.Deferred. When this Deferred fires, it
+              will return a "subject" string to its callback.
+    """
+    request_headers = {}
+    if api_key is not None:
+        request_headers['X-Redmine-API-Key'] = api_key
     try:
-        result = response.json()
-    except ValueError as err:
-        result = {}
-        logger.error("couldn't access that URL. response was %s: %s" % (response.status_code, err))
+        response = yield treq.get(api_url, headers=request_headers, timeout=5)
+        if response.code != 200:
+            defer.returnValue('could not read subject, HTTP code %i' %
+                              response.code)
+        else:
+            content = yield treq.json_content(response)
+            defer.returnValue(content['issue']['subject'])
+    except Exception, e:
+        # For example, if treq.get() timed out, or if treq.json_content() could
+        # not parse the JSON, etc.
+        defer.returnValue('could not read subject, %s' % e.message)
 
-    try:
-        return result['issue']['subject']
-    except KeyError:
-        return 'unable to read subject'
-
+def send_message(subject, client, channel, nick, ticket_url):
+    """
+    Send a message to an IRC/XMPP channel about a Redmine ticket.
+    """
+    msg = "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
+    client.msg(channel, msg)
 
 @match(is_ticket, priority=0)
 def redmine(client, channel, nick, message, matches):
@@ -72,7 +84,8 @@ def redmine(client, channel, nick, message, matches):
 
     api_url = "%s.json" % ticket_url
     api_key = get_api_key(settings)
-    response = get_ticket_response(api_url, api_key)
-    subject = get_issue_subject(response)
 
-    return "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
+    d = get_issue_subject(api_url, api_key)
+    d.addCallback(send_message, client, channel, nick, ticket_url)
+
+    raise ResponseNotReady

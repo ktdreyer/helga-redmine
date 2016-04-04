@@ -1,7 +1,8 @@
-from redmine import is_ticket, sanitize, get_ticket_response, get_api_key, get_issue_subject
+from redmine import is_ticket, sanitize, get_issue_subject, send_message, get_api_key
 import pytest
-import httpretty
 import json
+from treq.testing import StubTreq
+from twisted.web.resource import Resource
 
 
 def line_matrix():
@@ -77,6 +78,29 @@ class TestSanitize(object):
         assert sanitize(match) == '1234'
 
 
+class FakeClient(object):
+    """
+    Fake Helga client (eg IRC or XMPP) that simply saves the last
+    message sent.
+    """
+    def msg(self, channel, msg):
+        self.last_message = (channel, msg)
+
+
+class TestSendMessage(object):
+    def test_send_message(self):
+        subject = 'some issue subject'
+        client = FakeClient()
+        channel = '#bots'
+        nick = 'ktdreyer'
+        ticket_url = 'http://example.com/issues/1'
+        # Send the message using our fake client
+        send_message(subject, client, channel, nick, ticket_url)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [some issue subject]')
+        assert client.last_message == (channel, expected)
+
+
 class FakeSettings(object):
     pass
 
@@ -93,55 +117,37 @@ class TestGetAPIKey(object):
         result = get_api_key(settings)
         assert result == None
 
+class _TicketTestResource(Resource):
+    """
+    A twisted.web.resource.Resource that represents a private Redmine ticket.
+    If the user fails to supply an API key of "abc123", we return an HTTP 401
+    Unauthorized response. If the user supplies the proper API key, then we
+    return the valid JSON data for the ticket.
+    """
+    isLeaf = True
 
-class FakeResponse(object):
-    pass
-
+    def render(self, request):
+        if request.getHeader('X-Redmine-API-Key') == 'abc123':
+            request.setResponseCode(200)
+            payload = {'issue': {'subject': 'some issue subject'}}
+            return json.dumps(payload).encode('utf-8')
+        else:
+            request.setResponseCode(401)
+            return b'denied'
 
 class TestGetIssueSubject(object):
 
-    def test_get_correct_subject(self):
-        response = FakeResponse()
-        response.json = lambda: {'issue':{'subject': 'some issue subject'}}
-        result = get_issue_subject(response)
+    @pytest.inlineCallbacks
+    def test_get_denied_subject(self, monkeypatch):
+        monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
+        api_url = 'http://example.com/issues/123.json'
+        result = yield get_issue_subject(api_url)
+        assert result == 'could not read subject, HTTP code 401'
+
+    @pytest.inlineCallbacks
+    def test_get_correct_subject(self, monkeypatch):
+        monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
+        api_url = 'http://example.com/issues/123.json'
+        api_key = 'abc123'
+        result = yield get_issue_subject(api_url, api_key)
         assert result == 'some issue subject'
-
-    def test_get_fallback_subject(self):
-        response = FakeResponse()
-        response.json = lambda: {}
-        result = get_issue_subject(response)
-        assert result == 'unable to read subject'
-
-class TestAPIKeySubject(object):
-
-    api_url = 'http://tracker.example.com/issues/1234.json'
-
-    def request_callback(self, request, uri, headers):
-        if 'X-Redmine-API-Key' in request.headers:
-            payload = {'issue':{'subject': 'some issue subject'}}
-            return (200, headers, json.dumps(payload))
-        else:
-            return (401, headers, 'Unauthorized')
-
-    @httpretty.activate
-    def test_has_x_redmine_api_key(self):
-        httpretty.register_uri(
-            httpretty.GET, self.api_url,
-            body=self.request_callback)
-
-        response = get_ticket_response(self.api_url, '123deadbeef')
-        assert response.status_code == 200
-
-        result = get_issue_subject(response)
-        assert result == 'some issue subject'
-
-    @httpretty.activate
-    def test_has_no_x_redmine_api_key(self):
-        httpretty.register_uri(
-            httpretty.GET, self.api_url,
-            body=self.request_callback)
-        response = get_ticket_response(self.api_url, None)
-        assert response.status_code == 401
-
-        result = get_issue_subject(response)
-        assert result == 'unable to read subject'
