@@ -18,6 +18,7 @@ setup(name="helga-redmine",
       license='MIT',
       packages=find_packages(),
       install_requires=[
+          'helga',
           'requests',
       ],
       tests_require=[
