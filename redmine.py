@@ -65,7 +65,11 @@ def redmine(client, channel, nick, message, matches):
     if not ticket_number:
         logger.warning('I could not determine the right ticket from matches: %s' % matches.groups())
 
-    ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
+    try:
+        ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
+    except AttributeError:
+        return 'Please configure REDMINE_URL to point to your tracker.'
+
     api_url = "%s.json" % ticket_url
     api_key = get_api_key(settings)
     response = get_ticket_response(api_url, api_key)
