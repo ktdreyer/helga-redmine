@@ -16,24 +16,6 @@ def get_api_key(settings):
         return None
 
 
-def is_ticket(message):
-   regex = re.compile(
-       r'(.*)(issue|ticket|bug|redmine)+\s+#?([0-9]+)', re.IGNORECASE
-   )
-   return regex.match(message)
-
-
-def sanitize(match):
-    """
-    this function sanitizes the match from a ``regex.match(phrase)``
-    call to return the ticket id only.
-    """
-    if not match:
-        return ''
-    ticket_id = match[-1]  # Always the last one in the group
-    ticket_id = ticket_id.strip()  # probably not necessary?
-    return ticket_id.strip('#')
-
 @defer.inlineCallbacks
 def get_issue_subject(api_url, api_key=None):
     """
@@ -67,15 +49,16 @@ def send_message(subject, client, channel, nick, ticket_url):
     msg = "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
     client.msg(channel, msg)
 
-@match(is_ticket, priority=0)
+ticket_regex = re.compile(
+   r'.*(?:issue|ticket|bug|redmine)+\s+#?([0-9]+)', re.IGNORECASE
+)
+
+@match(ticket_regex, priority=0)
 def redmine(client, channel, nick, message, matches):
     """
     Match possible Redmine tickets, return links and subject info
     """
-    ticket_number = sanitize(matches.groups())
-
-    if not ticket_number:
-        logger.warning('I could not determine the right ticket from matches: %s' % matches.groups())
+    ticket_number = matches[0]
 
     try:
         ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
