@@ -117,14 +117,14 @@ class TestGetIssueSubject(object):
     @pytest.inlineCallbacks
     def test_get_denied_subject(self, monkeypatch):
         monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
-        api_url = 'http://example.com/issues/123.json'
-        result = yield get_issue_subject(api_url)
+        ticket_url = 'http://example.com/issues/123'
+        result = yield get_issue_subject(ticket_url)
         assert result == 'could not read subject, HTTP code 401'
 
     @pytest.inlineCallbacks
     def test_get_correct_subject(self, monkeypatch):
         monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
-        api_url = 'http://example.com/issues/123.json'
+        ticket_url = 'http://example.com/issues/123'
         api_key = 'abc123'
-        result = yield get_issue_subject(api_url, api_key)
+        result = yield get_issue_subject(ticket_url, api_key)
         assert result == 'some issue subject'

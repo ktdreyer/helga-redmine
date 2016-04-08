@@ -17,15 +17,16 @@ def get_api_key(settings):
 
 
 @defer.inlineCallbacks
-def get_issue_subject(api_url, api_key=None):
+def get_issue_subject(ticket_url, api_key=None):
     """
-    Find the "subject" string in the JSON data of an api_url.
-    :param api_url: JSON API URL to GET via HTTP.
+    Find the "subject" string in the JSON data of a ticket.
+    :param ticket_url: URL for a ticket
     :param api_key: API secret key (string), or None if you do not want to
                     authenticate to Redmine.
     :returns: twisted.internet.defere.Deferred. When this Deferred fires, it
               will return a "subject" string to its callback.
     """
+    api_url = "%s.json" % ticket_url
     request_headers = {}
     if api_key is not None:
         request_headers['X-Redmine-API-Key'] = api_key
@@ -65,10 +66,9 @@ def redmine(client, channel, nick, message, matches):
     except AttributeError:
         return 'Please configure REDMINE_URL to point to your tracker.'
 
-    api_url = "%s.json" % ticket_url
     api_key = get_api_key(settings)
 
-    d = get_issue_subject(api_url, api_key)
+    d = get_issue_subject(ticket_url, api_key)
     d.addCallback(send_message, client, channel, nick, ticket_url)
 
     raise ResponseNotReady
