@@ -33,31 +33,41 @@ def get_issue_subject(ticket_url, api_key=None):
     try:
         response = yield treq.get(api_url, headers=request_headers, timeout=5)
         if response.code != 200:
-            defer.returnValue('could not read subject, HTTP code %i' %
-                              response.code)
+            subject = 'could not read subject, HTTP code %i' % response.code
+            defer.returnValue((ticket_url, subject))
         else:
             content = yield treq.json_content(response)
-            defer.returnValue(content['issue']['subject'])
+            defer.returnValue((ticket_url, content['issue']['subject']))
     except Exception, e:
         # For example, if treq.get() timed out, or if treq.json_content() could
         # not parse the JSON, etc.
-        defer.returnValue('could not read subject, %s' % e.message)
+        subject = 'could not read subject, %s' % e.message
+        defer.returnValue((ticket_url, subject))
 
-def construct_message(ticket_url, subject, nick):
+def construct_message(urls_and_subjects, nick):
     """
-    Return a string about a nick and ticket's URL and subject.
+    Return a string about a nick and a list of tickets' URLs and subjects.
     """
-    return "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
+    msgs = []
+    for url_and_subject in urls_and_subjects:
+        ticket_url, subject = url_and_subject
+        msgs.append('%s [%s]' % (ticket_url, subject))
+    if len(msgs) == 1:
+        msg = msgs[0]
+    else:
+        msg = "{} and {}".format(", ".join(msgs[:-1]), msgs[-1])
+    return "%s might be talking about %s" % (nick, msg)
 
-def send_message(subject, client, channel, nick, ticket_url):
+def send_message(urls_and_subjects, client, channel, nick):
     """
-    Send a message to an IRC/XMPP channel about a Redmine ticket.
+    Send a message to an IRC/XMPP channel about a list of tickets' URLs and
+    subjects.
     """
-    msg = construct_message(ticket_url, subject, nick)
+    msg = construct_message(urls_and_subjects, nick)
     client.msg(channel, msg)
 
 ticket_regex = re.compile(
-   r'.*(?:issue|ticket|bug|redmine)+\s+#?([0-9]+)', re.IGNORECASE
+   r'(?:issue|ticket|bug|redmine)+\s+#?([0-9]+)', re.IGNORECASE
 )
 
 @match(ticket_regex, priority=0)
@@ -65,16 +75,17 @@ def redmine(client, channel, nick, message, matches):
     """
     Match possible Redmine tickets, return links and subject info
     """
-    ticket_number = matches[0]
-
-    try:
-        ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
-    except AttributeError:
-        return 'Please configure REDMINE_URL to point to your tracker.'
-
     api_key = get_api_key(settings)
 
-    d = get_issue_subject(ticket_url, api_key)
-    d.addCallback(send_message, client, channel, nick, ticket_url)
+    deferreds = []
+    for ticket_number in matches:
+        try:
+            ticket_url = settings.REDMINE_URL % {'ticket': ticket_number}
+        except AttributeError:
+            return 'Please configure REDMINE_URL to point to your tracker.'
 
+        deferreds.append(get_issue_subject(ticket_url, api_key))
+
+    d = defer.gatherResults(deferreds, consumeErrors=True)
+    d.addCallback(send_message, client, channel, nick)
     raise ResponseNotReady

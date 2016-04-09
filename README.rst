@@ -15,6 +15,15 @@ and print information about the tickets. For example::
                    http://tracker.ceph.com/issues/8825 [ceph-deploy tox tests
                    not working with python-remoto (CEPH_DEPLOY_NO_VENDOR)]
 
+You can specify multiple tickets as well::
+
+  03:14 < ktdreyer> issue 123 and issue 456
+  03:14 < helgabot> ktdreyer might be talking about
+                    http://tracker.ceph.com/issues/123 [fix msgr message retry
+                    seq numbering] and http://tracker.ceph.com/issues/456 [make
+                    dumpjournal functionality usable]
+
+
 Installation
 ------------
 This Redmine plugin is `available from PyPI

@@ -67,12 +67,13 @@ class FakeClient(object):
 class TestSendMessage(object):
     def test_send_message(self):
         subject = 'some issue subject'
+        ticket_url = 'http://example.com/issues/1'
+        urls_and_subjects = [(ticket_url, subject)]
         client = FakeClient()
         channel = '#bots'
         nick = 'ktdreyer'
-        ticket_url = 'http://example.com/issues/1'
         # Send the message using our fake client
-        send_message(subject, client, channel, nick, ticket_url)
+        send_message(urls_and_subjects, client, channel, nick)
         expected = ('ktdreyer might be talking about '
                     'http://example.com/issues/1 [some issue subject]')
         assert client.last_message == (channel, expected)
@@ -83,9 +84,36 @@ class TestConstructMessage(object):
         ticket_url = 'http://example.com/issues/1'
         subject = 'some issue subject'
         nick = 'ktdreyer'
-        result = construct_message(ticket_url, subject, nick)
+        result = construct_message([(ticket_url, subject)], nick)
         expected = ('ktdreyer might be talking about '
                     'http://example.com/issues/1 [some issue subject]')
+        assert result == expected
+
+    def test_two_tickets(self):
+        urls_and_subjects = []
+        urls_and_subjects.append(('http://example.com/issues/1', 'subj 1'))
+        urls_and_subjects.append(('http://example.com/issues/2', 'subj 2'))
+        nick = 'ktdreyer'
+        result = construct_message(urls_and_subjects, nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [subj 1] and '
+                    'http://example.com/issues/2 [subj 2]')
+        assert result == expected
+
+    def test_four_tickets(self):
+        """ Verify that commas "," and "and" get put in the right places. """
+        urls_and_subjects = []
+        urls_and_subjects.append(('http://example.com/issues/1', 'subj 1'))
+        urls_and_subjects.append(('http://example.com/issues/2', 'subj 2'))
+        urls_and_subjects.append(('http://example.com/issues/3', 'subj 3'))
+        urls_and_subjects.append(('http://example.com/issues/4', 'subj 4'))
+        nick = 'ktdreyer'
+        result = construct_message(urls_and_subjects, nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [subj 1], '
+                    'http://example.com/issues/2 [subj 2], '
+                    'http://example.com/issues/3 [subj 3] and '
+                    'http://example.com/issues/4 [subj 4]')
         assert result == expected
 
 
@@ -130,7 +158,7 @@ class TestGetIssueSubject(object):
         monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
         ticket_url = 'http://example.com/issues/123'
         result = yield get_issue_subject(ticket_url)
-        assert result == 'could not read subject, HTTP code 401'
+        assert result == (ticket_url, 'could not read subject, HTTP code 401')
 
     @pytest.inlineCallbacks
     def test_get_correct_subject(self, monkeypatch):
@@ -138,4 +166,4 @@ class TestGetIssueSubject(object):
         ticket_url = 'http://example.com/issues/123'
         api_key = 'abc123'
         result = yield get_issue_subject(ticket_url, api_key)
-        assert result == 'some issue subject'
+        assert result == (ticket_url, 'some issue subject')
