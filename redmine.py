@@ -43,11 +43,17 @@ def get_issue_subject(ticket_url, api_key=None):
         # not parse the JSON, etc.
         defer.returnValue('could not read subject, %s' % e.message)
 
+def construct_message(ticket_url, subject, nick):
+    """
+    Return a string about a nick and ticket's URL and subject.
+    """
+    return "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
+
 def send_message(subject, client, channel, nick, ticket_url):
     """
     Send a message to an IRC/XMPP channel about a Redmine ticket.
     """
-    msg = "%s might be talking about %s [%s]" % (nick, ticket_url, subject)
+    msg = construct_message(ticket_url, subject, nick)
     client.msg(channel, msg)
 
 ticket_regex = re.compile(

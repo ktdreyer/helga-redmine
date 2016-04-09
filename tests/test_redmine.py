@@ -1,4 +1,4 @@
-from redmine import ticket_regex, get_issue_subject, send_message, get_api_key
+from redmine import ticket_regex, get_issue_subject, construct_message, send_message, get_api_key
 import pytest
 import re
 import json
@@ -76,6 +76,17 @@ class TestSendMessage(object):
         expected = ('ktdreyer might be talking about '
                     'http://example.com/issues/1 [some issue subject]')
         assert client.last_message == (channel, expected)
+
+
+class TestConstructMessage(object):
+    def test_construct_message(self):
+        ticket_url = 'http://example.com/issues/1'
+        subject = 'some issue subject'
+        nick = 'ktdreyer'
+        result = construct_message(ticket_url, subject, nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [some issue subject]')
+        assert result == expected
 
 
 class FakeSettings(object):
