@@ -8,13 +8,7 @@ from twisted.internet import defer
 logger = log.getLogger(__name__)
 
 def get_api_key(settings):
-    if hasattr(settings, 'REDMINE_API_KEY'):
-        logger.debug("REDMINE_API_KEY is set. I will use this key to read private tickets.")
-        return settings.REDMINE_API_KEY
-    else:
-        logger.debug("REDMINE_API_KEY is not set. I can only read public tickets.")
-        return None
-
+    return getattr(settings, 'REDMINE_API_KEY', None)
 
 @defer.inlineCallbacks
 def get_issue_subject(ticket_url, api_key=None):
