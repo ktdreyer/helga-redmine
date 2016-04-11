@@ -1,4 +1,4 @@
-from redmine import ticket_regex, get_issue_subject, construct_message, send_message, get_api_key
+from redmine import match_tickets, get_issue_subject, construct_message, send_message, get_api_key
 import pytest
 import re
 import json
@@ -43,16 +43,29 @@ def fail_line_matrix():
     return lines
 
 
+multiple_ticket_lines = [
+    'issues #1 #2 #3',
+    'issues 1, 2, 3',
+    'issues 1, 2 and 3',
+    'issues 1, 2, and 3',
+    'issues 1 and 2 and 3',
+    'issues 1, and 2, and 3',
+]
+
 
 class TestIsTicket(object):
 
     @pytest.mark.parametrize('line', line_matrix())
     def test_matches(self, line):
-        assert len(re.findall(ticket_regex, line)) > 0
+        assert len(match_tickets(line)) > 0
 
     @pytest.mark.parametrize('line', fail_line_matrix())
     def test_does_not_match(self, line):
-        assert re.findall(ticket_regex, line) == []
+        assert match_tickets(line) == []
+
+    @pytest.mark.parametrize('line', multiple_ticket_lines)
+    def test_matches_multiple_tickets(self, line):
+        assert match_tickets(line) == ['1', '2', '3']
 
 
 class FakeClient(object):

@@ -23,6 +23,16 @@ You can specify multiple tickets as well::
                     seq numbering] and http://tracker.ceph.com/issues/456 [make
                     dumpjournal functionality usable]
 
+Or more simply, "issues <numbers>,", like so::
+
+  03:14 < ktdreyer> issues 777, 888, and 999
+  03:14 < helgabot> ktdreyer might be talking about
+                    http://tracker.ceph.com/issues/777 [mount hung, tid timed
+                    out messages in log], http://tracker.ceph.com/issues/888
+                    [get new sepia machines into autotest pool] and
+                    http://tracker.ceph.com/issues/999 [Duplicate Bucket
+                    Created]
+
 
 Installation
 ------------

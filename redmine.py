@@ -60,11 +60,32 @@ def send_message(urls_and_subjects, client, channel, nick):
     msg = construct_message(urls_and_subjects, nick)
     client.msg(channel, msg)
 
-ticket_regex = re.compile(
-   r'(?:issue|ticket|bug|redmine)+\s+#?([0-9]+)', re.IGNORECASE
-)
+def match_tickets(message):
+    tickets = []
+    pattern = re.compile(r"""
+       (?:               # Prefix to trigger the plugin:
+            issues?      #   "issue" or "issues"
+          | tickets?     #   "ticket" or "tickets"
+          | bugs?        #   "bug" or "bugs"
+          | redmines?    #   "redmine" or "redmines"
+       )                 #
+       \s+               #
+       [#]?[0-9]+        # Number, optionally preceded by "#"
+       (?:               # The following pattern will match zero or more times:
+          ,?             #   Optional comma
+          \s+            #
+          (?:and\s+)?    #   Optional "and "
+          [#]?[0-9]+     #   Number, optionally preceded by "#"
+       )*
+       """, re.VERBOSE | re.IGNORECASE
+    )
+    for match in re.findall(pattern, message):
+        for ticket in re.findall(r'[0-9]+', match):
+            tickets.append(ticket)
+    return tickets
 
-@match(ticket_regex, priority=0)
+
+@match(match_tickets, priority=0)
 def redmine(client, channel, nick, message, matches):
     """
     Match possible Redmine tickets, return links and subject info
