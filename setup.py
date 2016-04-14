@@ -20,7 +20,6 @@ setup(name="helga-redmine",
       install_requires=[
           'helga',
           'treq>=15.1.0',
-          'twisted',
       ],
       tests_require=[
           'pytest-twisted',
