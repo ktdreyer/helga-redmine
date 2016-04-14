@@ -18,10 +18,12 @@ setup(name="helga-redmine",
       license='MIT',
       packages=find_packages(),
       install_requires=[
-          'requests',
+          'helga',
+          'treq>=15.1.0',
+          'twisted',
       ],
       tests_require=[
-          'httpretty',
+          'pytest-twisted',
       ],
       entry_points = dict(
           helga_plugins = [

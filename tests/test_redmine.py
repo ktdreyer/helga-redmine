@@ -1,7 +1,9 @@
-from redmine import is_ticket, sanitize, get_ticket_response, get_api_key, get_issue_subject
+from redmine import match_tickets, get_issue_subject, construct_message, send_message, get_api_key
 import pytest
-import httpretty
+import re
 import json
+from treq.testing import StubTreq
+from twisted.web.resource import Resource
 
 
 def line_matrix():
@@ -41,40 +43,91 @@ def fail_line_matrix():
     return lines
 
 
+multiple_ticket_lines = [
+    'issues #1 #2 #3',
+    'issues 1, 2, 3',
+    'issues 1, 2 and 3',
+    'issues 1, 2, and 3',
+    'issues 1 and 2 and 3',
+    'issues 1, and 2, and 3',
+]
+
 
 class TestIsTicket(object):
 
     @pytest.mark.parametrize('line', line_matrix())
     def test_matches(self, line):
-        assert is_ticket(line)
+        assert len(match_tickets(line)) > 0
 
     @pytest.mark.parametrize('line', fail_line_matrix())
     def test_does_not_match(self, line):
-        assert is_ticket(line) is None
+        assert match_tickets(line) == []
+
+    @pytest.mark.parametrize('line', multiple_ticket_lines)
+    def test_matches_multiple_tickets(self, line):
+        assert match_tickets(line) == ['1', '2', '3']
 
 
-
-def match_matrix():
-    matches = ['1234', '#1234']
-    prefixes = ['', ' ']
-    suffixes = ['', ' ']
-    lines = []
-
-    for match in matches:
-        for prefix in prefixes:
-            for suffix in suffixes:
-                lines.append(
-                    ['', '%s%s%s' % (prefix, match, suffix)]
-                )
-    return lines
+class FakeClient(object):
+    """
+    Fake Helga client (eg IRC or XMPP) that simply saves the last
+    message sent.
+    """
+    def msg(self, channel, msg):
+        self.last_message = (channel, msg)
 
 
+class TestSendMessage(object):
+    def test_send_message(self):
+        subject = 'some issue subject'
+        ticket_url = 'http://example.com/issues/1'
+        urls_and_subjects = [(ticket_url, subject)]
+        client = FakeClient()
+        channel = '#bots'
+        nick = 'ktdreyer'
+        # Send the message using our fake client
+        send_message(urls_and_subjects, client, channel, nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [some issue subject]')
+        assert client.last_message == (channel, expected)
 
-class TestSanitize(object):
 
-    @pytest.mark.parametrize('match', match_matrix())
-    def test_sanitizes(self, match):
-        assert sanitize(match) == '1234'
+class TestConstructMessage(object):
+    def test_construct_message(self):
+        ticket_url = 'http://example.com/issues/1'
+        subject = 'some issue subject'
+        nick = 'ktdreyer'
+        result = construct_message([(ticket_url, subject)], nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [some issue subject]')
+        assert result == expected
+
+    def test_two_tickets(self):
+        urls_and_subjects = []
+        urls_and_subjects.append(('http://example.com/issues/1', 'subj 1'))
+        urls_and_subjects.append(('http://example.com/issues/2', 'subj 2'))
+        nick = 'ktdreyer'
+        result = construct_message(urls_and_subjects, nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [subj 1] and '
+                    'http://example.com/issues/2 [subj 2]')
+        assert result == expected
+
+    def test_four_tickets(self):
+        """ Verify that commas "," and "and" get put in the right places. """
+        urls_and_subjects = []
+        urls_and_subjects.append(('http://example.com/issues/1', 'subj 1'))
+        urls_and_subjects.append(('http://example.com/issues/2', 'subj 2'))
+        urls_and_subjects.append(('http://example.com/issues/3', 'subj 3'))
+        urls_and_subjects.append(('http://example.com/issues/4', 'subj 4'))
+        nick = 'ktdreyer'
+        result = construct_message(urls_and_subjects, nick)
+        expected = ('ktdreyer might be talking about '
+                    'http://example.com/issues/1 [subj 1], '
+                    'http://example.com/issues/2 [subj 2], '
+                    'http://example.com/issues/3 [subj 3] and '
+                    'http://example.com/issues/4 [subj 4]')
+        assert result == expected
 
 
 class FakeSettings(object):
@@ -93,55 +146,37 @@ class TestGetAPIKey(object):
         result = get_api_key(settings)
         assert result == None
 
+class _TicketTestResource(Resource):
+    """
+    A twisted.web.resource.Resource that represents a private Redmine ticket.
+    If the user fails to supply an API key of "abc123", we return an HTTP 401
+    Unauthorized response. If the user supplies the proper API key, then we
+    return the valid JSON data for the ticket.
+    """
+    isLeaf = True
 
-class FakeResponse(object):
-    pass
-
+    def render(self, request):
+        if request.getHeader('X-Redmine-API-Key') == 'abc123':
+            request.setResponseCode(200)
+            payload = {'issue': {'subject': 'some issue subject'}}
+            return json.dumps(payload).encode('utf-8')
+        else:
+            request.setResponseCode(401)
+            return b'denied'
 
 class TestGetIssueSubject(object):
 
-    def test_get_correct_subject(self):
-        response = FakeResponse()
-        response.json = lambda: {'issue':{'subject': 'some issue subject'}}
-        result = get_issue_subject(response)
-        assert result == 'some issue subject'
+    @pytest.inlineCallbacks
+    def test_get_denied_subject(self, monkeypatch):
+        monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
+        ticket_url = 'http://example.com/issues/123'
+        result = yield get_issue_subject(ticket_url)
+        assert result == (ticket_url, 'could not read subject, HTTP code 401')
 
-    def test_get_fallback_subject(self):
-        response = FakeResponse()
-        response.json = lambda: {}
-        result = get_issue_subject(response)
-        assert result == 'unable to read subject'
-
-class TestAPIKeySubject(object):
-
-    api_url = 'http://tracker.example.com/issues/1234.json'
-
-    def request_callback(self, request, uri, headers):
-        if 'X-Redmine-API-Key' in request.headers:
-            payload = {'issue':{'subject': 'some issue subject'}}
-            return (200, headers, json.dumps(payload))
-        else:
-            return (401, headers, 'Unauthorized')
-
-    @httpretty.activate
-    def test_has_x_redmine_api_key(self):
-        httpretty.register_uri(
-            httpretty.GET, self.api_url,
-            body=self.request_callback)
-
-        response = get_ticket_response(self.api_url, '123deadbeef')
-        assert response.status_code == 200
-
-        result = get_issue_subject(response)
-        assert result == 'some issue subject'
-
-    @httpretty.activate
-    def test_has_no_x_redmine_api_key(self):
-        httpretty.register_uri(
-            httpretty.GET, self.api_url,
-            body=self.request_callback)
-        response = get_ticket_response(self.api_url, None)
-        assert response.status_code == 401
-
-        result = get_issue_subject(response)
-        assert result == 'unable to read subject'
+    @pytest.inlineCallbacks
+    def test_get_correct_subject(self, monkeypatch):
+        monkeypatch.setattr('redmine.treq', StubTreq(_TicketTestResource()))
+        ticket_url = 'http://example.com/issues/123'
+        api_key = 'abc123'
+        result = yield get_issue_subject(ticket_url, api_key)
+        assert result == (ticket_url, 'some issue subject')
