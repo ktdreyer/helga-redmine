@@ -18,8 +18,9 @@ setup(name="helga-redmine",
       license='MIT',
       packages=find_packages(),
       install_requires=[
-          'helga',
+          'helga>=1.7.5',
           'treq>=15.1.0',
+          'twisted',
       ],
       tests_require=[
           'pytest-twisted',
