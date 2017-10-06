@@ -7,8 +7,10 @@ from twisted.internet import defer
 
 logger = log.getLogger(__name__)
 
+
 def get_api_key(settings):
     return getattr(settings, 'REDMINE_API_KEY', None)
+
 
 @defer.inlineCallbacks
 def get_issue_subject(ticket_url, api_key=None):
@@ -38,6 +40,7 @@ def get_issue_subject(ticket_url, api_key=None):
         subject = 'could not read subject, %s' % e.message
         defer.returnValue((ticket_url, subject))
 
+
 def construct_message(urls_and_subjects, nick):
     """
     Return a string about a nick and a list of tickets' URLs and subjects.
@@ -52,6 +55,7 @@ def construct_message(urls_and_subjects, nick):
         msg = "{} and {}".format(", ".join(msgs[:-1]), msgs[-1])
     return "%s might be talking about %s" % (nick, msg)
 
+
 def send_message(urls_and_subjects, client, channel, nick):
     """
     Send a message to an IRC/XMPP channel about a list of tickets' URLs and
@@ -59,6 +63,7 @@ def send_message(urls_and_subjects, client, channel, nick):
     """
     msg = construct_message(urls_and_subjects, nick)
     client.msg(channel, msg)
+
 
 def match_tickets(message):
     tickets = []
